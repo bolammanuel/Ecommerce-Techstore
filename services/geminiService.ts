@@ -1,55 +1,57 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
-import { Product } from '../types';
-import { MOCK_PRODUCTS } from '../constants';
+import { Product } from "../types";
+import { MOCK_PRODUCTS } from "../constants";
 
 // Always use new GoogleGenAI({apiKey: process.env.API_KEY});
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getSmartSearch = async (query: string): Promise<string[]> => {
-  if (!process.env.API_KEY || query.length < 2) return MOCK_PRODUCTS.map(p => p.id);
-  
+  if (!process.env.API_KEY || query.length < 2)
+    return MOCK_PRODUCTS.map((p) => p.id);
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Given this product list: ${JSON.stringify(MOCK_PRODUCTS.map(p => ({id: p.id, name: p.name, desc: p.description})))}. 
+      contents: `Given this product list: ${JSON.stringify(MOCK_PRODUCTS.map((p) => ({ id: p.id, name: p.name, desc: p.description })))}. 
       The user search query is: "${query}". 
       Return only a JSON array of product IDs that best match this query.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
-          items: { type: Type.STRING }
-        }
-      }
+          items: { type: Type.STRING },
+        },
+      },
     });
-    
+
     // Using response.text property to extract generated text.
     return JSON.parse(response.text.trim());
   } catch (error) {
     console.error("Gemini Search Error:", error);
-    return MOCK_PRODUCTS.map(p => p.id);
+    return MOCK_PRODUCTS.map((p) => p.id);
   }
 };
 
-export const getSearchSuggestions = async (query: string): Promise<string[]> => {
+export const getSearchSuggestions = async (
+  query: string,
+): Promise<string[]> => {
   if (!process.env.API_KEY || query.length < 2) return [];
-  
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Based on these products: ${MOCK_PRODUCTS.map(p => p.name).join(', ')}. 
+      contents: `Based on these products: ${MOCK_PRODUCTS.map((p) => p.name).join(", ")}. 
       The user is typing: "${query}". 
       Return a JSON array of 3-5 concise, relevant search suggestions (strings).`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
-          items: { type: Type.STRING }
-        }
-      }
+          items: { type: Type.STRING },
+        },
+      },
     });
-    
+
     // Using response.text property to extract generated text.
     return JSON.parse(response.text.trim());
   } catch (error) {
@@ -58,7 +60,7 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
 };
 
 export interface ChatAction {
-  type: 'ADD_TO_CART';
+  type: "ADD_TO_CART";
   productId: string;
 }
 
@@ -67,24 +69,32 @@ export interface ChatResponse {
   action?: ChatAction;
 }
 
-export const getChatResponse = async (message: string, history: { role: 'user' | 'model', text: string }[]): Promise<ChatResponse> => {
-  if (!process.env.API_KEY) return { text: "I'm sorry, I'm having trouble connecting right now. Please try again later." };
-  
+export const getChatResponse = async (
+  message: string,
+  history: { role: "user" | "model"; text: string }[],
+): Promise<ChatResponse> => {
+  if (!process.env.API_KEY)
+    return {
+      text: "I'm sorry, I'm having trouble connecting right now. Please try again later.",
+    };
+
   const siteInfo = {
     name: "TechStore",
     categories: ["Laptops", "Audio", "Wearables", "Smart Home"],
-    products: MOCK_PRODUCTS.map(p => ({
+    products: MOCK_PRODUCTS.map((p) => ({
       id: p.id,
       name: p.name,
       category: p.category,
       price: p.price,
       description: p.description,
-      stock: p.stock
+      stock: p.stock,
     })),
-    shipping: "Free Express Delivery on orders over $500. Standard shipping takes 3-5 business days.",
+    shipping:
+      "Free Express Delivery on orders over $500. Standard shipping takes 3-5 business days.",
     returns: "30-day return policy for unused items in original packaging.",
-    support: "24/7 support via live chat, email (support@techstore.com), or phone (+1 800 TECH-STORE).",
-    vat: "7.5% VAT is applied to all orders."
+    support:
+      "24/7 support via live chat, email (support@techstore.com), or phone (+1 800 TECH-STORE).",
+    vat: "7.5% VAT is applied to all orders.",
   };
 
   try {
@@ -106,39 +116,45 @@ export const getChatResponse = async (message: string, history: { role: 'user' |
         - Encourage users to check out our "Discovery" section for new releases.
         - Mention that we have a "Track Order" feature if they have an Order ID.
         - You can add products to the user's cart if they ask. Use the addToCart tool.`,
-        tools: [{
-          functionDeclarations: [{
-            name: "addToCart",
-            description: "Add a product to the shopping cart",
-            parameters: {
-              type: Type.OBJECT,
-              properties: {
-                productId: {
-                  type: Type.STRING,
-                  description: "The ID of the product to add to cart"
-                }
+        tools: [
+          {
+            functionDeclarations: [
+              {
+                name: "addToCart",
+                description: "Add a product to the shopping cart",
+                parameters: {
+                  type: Type.OBJECT,
+                  properties: {
+                    productId: {
+                      type: Type.STRING,
+                      description: "The ID of the product to add to cart",
+                    },
+                  },
+                  required: ["productId"],
+                },
               },
-              required: ["productId"]
-            }
-          }]
-        }]
+            ],
+          },
+        ],
       },
     });
 
     const functionCalls = response.functionCalls;
     if (functionCalls && functionCalls.length > 0) {
       const call = functionCalls[0];
-      if (call.name === 'addToCart') {
+      if (call.name === "addToCart") {
         const productId = (call.args as any).productId;
-        const product = MOCK_PRODUCTS.find(p => p.id === productId);
+        const product = MOCK_PRODUCTS.find((p) => p.id === productId);
         return {
-          text: `I've added the ${product?.name || 'item'} to your cart!`,
-          action: { type: 'ADD_TO_CART', productId }
+          text: `I've added the ${product?.name || "item"} to your cart!`,
+          action: { type: "ADD_TO_CART", productId },
         };
       }
     }
 
-    return { text: response.text || "I'm sorry, I couldn't process that request." };
+    return {
+      text: response.text || "I'm sorry, I couldn't process that request.",
+    };
   } catch (error) {
     console.error("Gemini Chat Error:", error);
     return { text: "I'm sorry, I encountered an error. Please try again." };
