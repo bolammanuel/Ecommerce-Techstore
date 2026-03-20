@@ -11,7 +11,7 @@ import ChatBot from './components/ChatBot';
 import { Product, CartItem, Category, View, SortOption, Review, Order, OrderStatus, CheckoutStep } from './types';
 import { MOCK_PRODUCTS, VAT_RATE } from './constants';
 import { ChevronRight, CheckCircle2, ShieldCheck, Truck, CreditCard, ArrowLeft, Loader2, SlidersHorizontal, Search, MapPin, Package, Clock, CreditCard as CardIcon } from 'lucide-react';
-import { usePaystackPayment } from 'react-paystack';
+import PaystackPop from "@paystack/inline-js";
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>(View.HOME);
@@ -43,16 +43,7 @@ const App: React.FC = () => {
     return { subtotal, vat, total };
   };
 
-  const paystackConfig = {
-    reference: (new Date()).getTime().toString(),
-    email: email,
-    amount: Math.round(calculateTotals().total * 100),
-    publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '',
-  };
-
-  const initializePaystack = usePaystackPayment(paystackConfig);
-
-  const handlePaystackSuccess = (reference: any) => {
+const handlePaystackSuccess = (reference: unknown) => {
     const newOrder: Order = {
       id: `TS-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       items: [...cartItems],
@@ -75,6 +66,25 @@ const App: React.FC = () => {
   const handlePaystackClose = () => {
     setIsProcessing(false);
   };
+
+  const startPaystackPayment = () => {
+  const paystack = new PaystackPop();
+
+  paystack.newTransaction({
+    key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
+    email: email,
+    amount: Math.round(calculateTotals().total * 100),
+    reference: new Date().getTime().toString(),
+
+    onSuccess(transaction) {
+      handlePaystackSuccess(transaction);
+    },
+
+    onCancel() {
+      handlePaystackClose();
+    }
+  });
+};
 
   // Persistence
   useEffect(() => {
@@ -135,42 +145,39 @@ const App: React.FC = () => {
     setReviews(prev => [newReview, ...prev]);
   };
 
-  const handleProcessPayment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (paymentGateway === 'paystack') {
-      if (!import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) {
-        alert('Paystack Public Key is missing. Please add it to your environment variables.');
-        return;
-      }
-      setIsProcessing(true);
-      initializePaystack({
-        onSuccess: handlePaystackSuccess,
-        onClose: handlePaystackClose
-      });
-    } else {
-      // Simulate other gateways
-      setIsProcessing(true);
-      setTimeout(() => {
-        const newOrder: Order = {
-          id: `TS-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-          items: [...cartItems],
-          total: calculateTotals().total,
-          status: OrderStatus.PLACED,
-          date: new Date().toLocaleDateString(),
-          email: email || 'customer@example.com'
-        };
-        setOrders(prev => [newOrder, ...prev]);
-        setLastOrder(newOrder);
-        setIsProcessing(false);
-        setView(View.CONFIRMATION);
-        setCartItems([]);
-        setCheckoutStep(CheckoutStep.INFO);
-        setEmail('');
-        setFirstName('');
-        setLastName('');
-      }, 2000);
+const handleProcessPayment = (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (paymentGateway === 'paystack') {
+    if (!import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) {
+      alert('Paystack Public Key is missing.');
+      return;
     }
-  };
+
+    setIsProcessing(true);
+    startPaystackPayment();
+
+  } else {
+    setIsProcessing(true);
+
+    setTimeout(() => {
+      const newOrder: Order = {
+        id: `TS-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+        items: [...cartItems],
+        total: calculateTotals().total,
+        status: OrderStatus.PLACED,
+        date: new Date().toLocaleDateString(),
+        email: email || 'customer@example.com'
+      };
+
+      setOrders(prev => [newOrder, ...prev]);
+      setLastOrder(newOrder);
+      setIsProcessing(false);
+      setView(View.CONFIRMATION);
+      setCartItems([]);
+    }, 2000);
+  }
+};
 
   const handleTrackOrder = (e: React.FormEvent) => {
     e.preventDefault();
@@ -343,7 +350,7 @@ const App: React.FC = () => {
                     </div>
                     <div className="flex gap-4">
                       <button type="button" onClick={() => setCheckoutStep(CheckoutStep.SHIPPING)} className="w-1/3 py-4 bg-slate-100 text-slate-900 font-bold rounded-2xl text-sm">Back</button>
-                      <button disabled={isProcessing} className="w-2/3 py-4 bg-[#137fec] text-white font-black rounded-2xl shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3">
+                      <button type="submit" disabled={isProcessing} className="w-2/3 py-4 bg-[#137fec] text-white font-black rounded-2xl shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3">
                         {isProcessing ? <Loader2 className="animate-spin" /> : <>Pay and Place Order <ShieldCheck size={20} /></>}
                       </button>
                     </div>
