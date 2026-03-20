@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Search, User, Menu, Bolt, Heart, Loader2, MapPin } from 'lucide-react';
+import { ShoppingCart, Search, User, Menu, RefreshCw, Heart, Loader2, MapPin } from 'lucide-react';
 import { getSearchSuggestions } from '../services/geminiService';
 
 interface LayoutProps {
@@ -70,7 +70,7 @@ const Layout: React.FC<LayoutProps> = ({
           <div className="flex items-center justify-between h-20 gap-4">
             <div className="flex items-center gap-2 shrink-0 cursor-pointer group" onClick={onNavigateHome} aria-label="Go to Home">
               <div className="w-10 h-10 bg-[#137fec] rounded-lg flex items-center justify-center text-white transition-transform group-hover:scale-105">
-                 <Bolt size={24} fill="white" />
+                 <RefreshCw size={24} strokeWidth={2.5} />
               </div>
               <span className="text-xl font-extrabold tracking-tight text-slate-900 hidden sm:block">TechStore</span>
             </div>
@@ -165,7 +165,7 @@ const Layout: React.FC<LayoutProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
             <h3 className="text-xl font-bold flex items-center gap-2">
-              <Bolt className="text-[#137fec]" /> TechStore
+              <RefreshCw className="text-[#137fec]" strokeWidth={2.5} /> TechStore
             </h3>
             <p className="text-slate-400 text-sm">Premium electronics for modern creators and professionals.</p>
           </div>
