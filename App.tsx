@@ -399,6 +399,7 @@ const App: React.FC = () => {
         isOpen={isChatOpen} 
         onOpen={() => setIsChatOpen(true)} 
         onClose={() => setIsChatOpen(false)} 
+        onAddToCart={handleAddToCart}
       />
     </Layout>
   );

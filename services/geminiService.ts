@@ -57,13 +57,24 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
   }
 };
 
-export const getChatResponse = async (message: string, history: { role: 'user' | 'model', text: string }[]): Promise<string> => {
-  if (!process.env.API_KEY) return "I'm sorry, I'm having trouble connecting right now. Please try again later.";
+export interface ChatAction {
+  type: 'ADD_TO_CART';
+  productId: string;
+}
+
+export interface ChatResponse {
+  text: string;
+  action?: ChatAction;
+}
+
+export const getChatResponse = async (message: string, history: { role: 'user' | 'model', text: string }[]): Promise<ChatResponse> => {
+  if (!process.env.API_KEY) return { text: "I'm sorry, I'm having trouble connecting right now. Please try again later." };
   
   const siteInfo = {
     name: "TechStore",
     categories: ["Laptops", "Audio", "Wearables", "Smart Home"],
     products: MOCK_PRODUCTS.map(p => ({
+      id: p.id,
       name: p.name,
       category: p.category,
       price: p.price,
@@ -77,8 +88,9 @@ export const getChatResponse = async (message: string, history: { role: 'user' |
   };
 
   try {
-    const chat = ai.chats.create({
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
+      contents: message,
       config: {
         systemInstruction: `You are a helpful and professional AI assistant for TechStore, a premium electronics e-commerce site. 
         Your goal is to assist customers with product discovery, order tracking, and general inquiries.
@@ -92,30 +104,43 @@ export const getChatResponse = async (message: string, history: { role: 'user' |
         - If a user asks about shipping or returns, use the provided support information.
         - If you don't know the answer, suggest they contact our human support team at support@techstore.com.
         - Encourage users to check out our "Discovery" section for new releases.
-        - Mention that we have a "Track Order" feature if they have an Order ID.`,
+        - Mention that we have a "Track Order" feature if they have an Order ID.
+        - You can add products to the user's cart if they ask. Use the addToCart tool.`,
+        tools: [{
+          functionDeclarations: [{
+            name: "addToCart",
+            description: "Add a product to the shopping cart",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                productId: {
+                  type: Type.STRING,
+                  description: "The ID of the product to add to cart"
+                }
+              },
+              required: ["productId"]
+            }
+          }]
+        }]
       },
     });
 
-    // We need to format history for the sendMessage call if we were using it, 
-    // but the current SDK sendMessage only takes a string. 
-    // Actually, the SDK supports history in the create call.
-    
-    // Let's recreate the chat with history
-    const chatWithHistory = ai.chats.create({
-      model: "gemini-3-flash-preview",
-      config: {
-        systemInstruction: `You are a helpful and professional AI assistant for TechStore... (same as above)`,
-      },
-      // history: history.map(h => ({ role: h.role, parts: [{ text: h.text }] }))
-    });
-    // Wait, the @google/genai SDK history format is slightly different.
-    // Let's just send the message for now, or include history in the prompt if needed.
-    // Actually, let's use the sendMessage method.
-    
-    const response = await chat.sendMessage({ message });
-    return response.text || "I'm sorry, I couldn't process that request.";
+    const functionCalls = response.functionCalls;
+    if (functionCalls && functionCalls.length > 0) {
+      const call = functionCalls[0];
+      if (call.name === 'addToCart') {
+        const productId = (call.args as any).productId;
+        const product = MOCK_PRODUCTS.find(p => p.id === productId);
+        return {
+          text: `I've added the ${product?.name || 'item'} to your cart!`,
+          action: { type: 'ADD_TO_CART', productId }
+        };
+      }
+    }
+
+    return { text: response.text || "I'm sorry, I couldn't process that request." };
   } catch (error) {
     console.error("Gemini Chat Error:", error);
-    return "I'm sorry, I encountered an error. Please try again.";
+    return { text: "I'm sorry, I encountered an error. Please try again." };
   }
 };

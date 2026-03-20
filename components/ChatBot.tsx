@@ -1,16 +1,19 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Loader2, User, Bot, Minimize2, Maximize2 } from 'lucide-react';
-import { getChatResponse } from '../services/geminiService';
+import { getChatResponse, ChatResponse } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
+import { Product } from '../types';
+import { MOCK_PRODUCTS } from '../constants';
 
 interface ChatBotProps {
   isOpen: boolean;
   onOpen: () => void;
   onClose: () => void;
+  onAddToCart: (product: Product) => void;
 }
 
-const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onOpen, onClose }) => {
+const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onOpen, onClose, onAddToCart }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([
@@ -37,8 +40,15 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onOpen, onClose }) => {
     setIsLoading(true);
 
     try {
-      const response = await getChatResponse(userMessage, messages);
-      setMessages(prev => [...prev, { role: 'model', text: response }]);
+      const response: ChatResponse = await getChatResponse(userMessage, messages);
+      setMessages(prev => [...prev, { role: 'model', text: response.text }]);
+      
+      if (response.action?.type === 'ADD_TO_CART') {
+        const product = MOCK_PRODUCTS.find(p => p.id === response.action?.productId);
+        if (product) {
+          onAddToCart(product);
+        }
+      }
     } catch (error) {
       setMessages(prev => [...prev, { role: 'model', text: "I'm sorry, I'm having trouble responding right now. Please try again later." }]);
     } finally {
