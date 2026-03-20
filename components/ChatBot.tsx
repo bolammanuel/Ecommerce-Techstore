@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Loader2, User, Bot, Minimize2, Maximize2 } from 'lucide-react';
 import { getChatResponse } from '../services/geminiService';
+import ReactMarkdown from 'react-markdown';
 
 interface ChatBotProps {
   isOpen: boolean;
@@ -108,7 +109,13 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onOpen, onClose }) => {
                     ? 'bg-slate-900 text-white rounded-tr-none' 
                     : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none'
                   }`}>
-                    {msg.text}
+                    {msg.role === 'model' ? (
+                      <div className="markdown-body prose prose-sm max-w-none">
+                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      msg.text
+                    )}
                   </div>
                 </div>
               </div>

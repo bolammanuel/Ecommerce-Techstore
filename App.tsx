@@ -11,6 +11,7 @@ import ChatBot from './components/ChatBot';
 import { Product, CartItem, Category, View, SortOption, Review, Order, OrderStatus, CheckoutStep } from './types';
 import { MOCK_PRODUCTS, VAT_RATE } from './constants';
 import { ChevronRight, CheckCircle2, ShieldCheck, Truck, CreditCard, ArrowLeft, Loader2, SlidersHorizontal, Search, MapPin, Package, Clock, CreditCard as CardIcon } from 'lucide-react';
+import { usePaystackPayment } from 'react-paystack';
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>(View.HOME);
@@ -31,6 +32,49 @@ const App: React.FC = () => {
   const [paymentGateway, setPaymentGateway] = useState<'paystack' | 'stripe' | 'paypal'>('paystack');
   const [trackingId, setTrackingId] = useState('');
   const [trackedOrder, setTrackedOrder] = useState<Order | null>(null);
+  const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+
+  const calculateTotals = () => {
+    const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const vat = subtotal * VAT_RATE;
+    const total = subtotal + vat;
+    return { subtotal, vat, total };
+  };
+
+  const paystackConfig = {
+    reference: (new Date()).getTime().toString(),
+    email: email,
+    amount: Math.round(calculateTotals().total * 100),
+    publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '',
+  };
+
+  const initializePaystack = usePaystackPayment(paystackConfig);
+
+  const handlePaystackSuccess = (reference: any) => {
+    const newOrder: Order = {
+      id: `TS-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+      items: [...cartItems],
+      total: calculateTotals().total,
+      status: OrderStatus.PLACED,
+      date: new Date().toLocaleDateString(),
+      email: email
+    };
+    setOrders(prev => [newOrder, ...prev]);
+    setLastOrder(newOrder);
+    setIsProcessing(false);
+    setView(View.CONFIRMATION);
+    setCartItems([]);
+    setCheckoutStep(CheckoutStep.INFO);
+    setEmail('');
+    setFirstName('');
+    setLastName('');
+  };
+
+  const handlePaystackClose = () => {
+    setIsProcessing(false);
+  };
 
   // Persistence
   useEffect(() => {
@@ -91,32 +135,41 @@ const App: React.FC = () => {
     setReviews(prev => [newReview, ...prev]);
   };
 
-  const calculateTotals = () => {
-    const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const vat = subtotal * VAT_RATE;
-    const total = subtotal + vat;
-    return { subtotal, vat, total };
-  };
-
   const handleProcessPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsProcessing(true);
-    setTimeout(() => {
-      const newOrder: Order = {
-        id: `TS-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-        items: [...cartItems],
-        total: calculateTotals().total,
-        status: OrderStatus.PLACED,
-        date: new Date().toLocaleDateString(),
-        email: 'customer@example.com'
-      };
-      setOrders(prev => [newOrder, ...prev]);
-      setLastOrder(newOrder);
-      setIsProcessing(false);
-      setView(View.CONFIRMATION);
-      setCartItems([]);
-      setCheckoutStep(CheckoutStep.INFO);
-    }, 2000);
+    if (paymentGateway === 'paystack') {
+      if (!import.meta.env.VITE_PAYSTACK_PUBLIC_KEY) {
+        alert('Paystack Public Key is missing. Please add it to your environment variables.');
+        return;
+      }
+      setIsProcessing(true);
+      initializePaystack({
+        onSuccess: handlePaystackSuccess,
+        onClose: handlePaystackClose
+      });
+    } else {
+      // Simulate other gateways
+      setIsProcessing(true);
+      setTimeout(() => {
+        const newOrder: Order = {
+          id: `TS-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+          items: [...cartItems],
+          total: calculateTotals().total,
+          status: OrderStatus.PLACED,
+          date: new Date().toLocaleDateString(),
+          email: email || 'customer@example.com'
+        };
+        setOrders(prev => [newOrder, ...prev]);
+        setLastOrder(newOrder);
+        setIsProcessing(false);
+        setView(View.CONFIRMATION);
+        setCartItems([]);
+        setCheckoutStep(CheckoutStep.INFO);
+        setEmail('');
+        setFirstName('');
+        setLastName('');
+      }, 2000);
+    }
   };
 
   const handleTrackOrder = (e: React.FormEvent) => {
@@ -247,9 +300,9 @@ const App: React.FC = () => {
                   <div className="space-y-8 animate-in fade-in">
                     <h2 className="text-2xl font-black text-slate-900">Personal Information</h2>
                     <div className="grid grid-cols-2 gap-4">
-                      <input required className="col-span-1 px-4 py-3 bg-white border border-slate-200 rounded-xl" placeholder="First Name" />
-                      <input required className="col-span-1 px-4 py-3 bg-white border border-slate-200 rounded-xl" placeholder="Last Name" />
-                      <input required type="email" className="col-span-2 px-4 py-3 bg-white border border-slate-200 rounded-xl" placeholder="Email Address" />
+                      <input required value={firstName} onChange={(e) => setFirstName(e.target.value)} className="col-span-1 px-4 py-3 bg-white border border-slate-200 rounded-xl" placeholder="First Name" />
+                      <input required value={lastName} onChange={(e) => setLastName(e.target.value)} className="col-span-1 px-4 py-3 bg-white border border-slate-200 rounded-xl" placeholder="Last Name" />
+                      <input required value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="col-span-2 px-4 py-3 bg-white border border-slate-200 rounded-xl" placeholder="Email Address" />
                     </div>
                     <button type="button" onClick={() => setCheckoutStep(CheckoutStep.SHIPPING)} className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl">Continue to Shipping</button>
                   </div>
