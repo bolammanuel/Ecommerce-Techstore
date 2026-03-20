@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 import { CartItem } from '../types';

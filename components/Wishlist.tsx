@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { X, Heart, Trash2, ShoppingCart } from 'lucide-react';
 import { Product } from '../types';

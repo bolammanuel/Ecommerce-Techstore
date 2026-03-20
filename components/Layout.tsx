@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Search, User, Menu, Bolt, Heart, Loader2, MapPin } from 'lucide-react';
 import { getSearchSuggestions } from '../services/geminiService';

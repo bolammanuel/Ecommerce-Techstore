@@ -1,4 +1,3 @@
-
 import { Product } from './types';
 
 export const VAT_RATE = 0.075; // 7.5%
