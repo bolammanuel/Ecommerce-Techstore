@@ -68,7 +68,16 @@ const Layout: React.FC<LayoutProps> = ({
       <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-slate-200" role="navigation" aria-label="Main Navigation">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20 gap-4">
-            <div className="flex items-center gap-2 shrink-0 cursor-pointer group" onClick={onNavigateHome} aria-label="Go to Home">
+            <div 
+              className="flex items-center gap-2 shrink-0 cursor-pointer group" 
+              onClick={() => {
+                onNavigateHome();
+                setSearchQuery('');
+                setActiveCategory('All');
+                window.scrollTo(0, 0);
+              }} 
+              aria-label="Go to Home"
+            >
               <div className="w-10 h-10 bg-[#137fec] rounded-lg flex items-center justify-center text-white transition-transform group-hover:scale-105">
                  <RefreshCw size={24} strokeWidth={2.5} />
               </div>
